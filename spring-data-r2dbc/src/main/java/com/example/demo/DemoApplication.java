@@ -21,6 +21,8 @@ import reactor.core.publisher.Mono;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.PersistenceConstructor;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.r2dbc.core.DatabaseClient;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import org.springframework.data.r2dbc.repository.query.Query;
@@ -40,37 +42,43 @@ public class DemoApplication {
 	}
 
 	@RestController
-	class PersonController {
+	public static class PersonController {
 
 		final PersonRepository personRepository;
+		final PersonEventRepository personEventRepository;
 		final DatabaseClient databaseClient;
 
-		public PersonController(PersonRepository personRepository, DatabaseClient databaseClient) {
+		public PersonController(PersonRepository personRepository,
+				PersonEventRepository personEventRepository,
+				DatabaseClient databaseClient) {
 			this.personRepository = personRepository;
+			this.personEventRepository = personEventRepository;
 			this.databaseClient = databaseClient;
 		}
 
 		@GetMapping("/")
-		Flux<Person> findAll() {
-			return personRepository.findAll();
+		public Flux<Person> findAll() {
+			return this.personRepository.findAll();
 		}
 
-		@GetMapping("/by-name/{lastname}")
-		Flux<Person> findAllByLastName(@PathVariable String lastName) {
-			return personRepository.findAllByLastName(lastName);
+		@GetMapping("events")
+		public Flux<PersonEvent> findAllEvents() {
+			return this.personEventRepository.findAll();
 		}
 
-		@PostMapping(value = "/create/{firstName}/{lastName}")
-		Mono<Void> create(@PathVariable String firstName, @PathVariable String lastName) {
+		@GetMapping("by-name/{lastname}")
+		public Flux<Person> findAllByLastName(@PathVariable String lastName) {
+			return this.personRepository.findAllByLastName(lastName);
+		}
 
-			Person person = new Person();
-			person.setFirstName(firstName);
-			person.setLastName(lastName);
+		@PostMapping(value = "create/{firstName}/{lastName}")
+		public Mono<Void> create(@PathVariable String firstName, @PathVariable String lastName) {
 
-			return databaseClient.insert()
-					.into(Person.class)
-					.using(person)
-					.then();
+			Person person = new Person(firstName, lastName);
+			PersonEvent event = new PersonEvent(firstName, lastName, "CREATED");
+
+			return personRepository.save(person)
+					.then(personEventRepository.save(event).then());
 		}
 	}
 
@@ -78,6 +86,9 @@ public class DemoApplication {
 
 		@Query("SELECT * FROM person WHERE last_name = :lastname")
 		Flux<Person> findAllByLastName(String lastname);
+	}
+
+	interface PersonEventRepository extends ReactiveCrudRepository<PersonEvent, Integer> {
 	}
 
 	@Table
@@ -88,6 +99,11 @@ public class DemoApplication {
 
 		String firstName;
 		String lastName;
+
+		public Person(String firstName, String lastName) {
+			this.firstName = firstName;
+			this.lastName = lastName;
+		}
 
 		public Integer getId() {
 			return this.id;
@@ -111,6 +127,68 @@ public class DemoApplication {
 
 		public void setLastName(String lastName) {
 			this.lastName = lastName;
+		}
+	}
+
+	@Table
+	static class PersonEvent implements Persistable<Integer> {
+
+		@Id
+		Integer id;
+
+		String firstName;
+		String lastName;
+		String action;
+
+		@PersistenceConstructor
+		public PersonEvent(Integer id, String firstName, String lastName, String action) {
+			this.id = id;
+			this.firstName = firstName;
+			this.lastName = lastName;
+			this.action = action;
+		}
+
+		public PersonEvent(String firstName, String lastName, String action) {
+			this.firstName = firstName;
+			this.lastName = lastName;
+			this.action = action;
+		}
+
+		public Integer getId() {
+			return this.id;
+		}
+
+		@Override
+		public boolean isNew() {
+			return true;
+		}
+
+		public void setId(Integer id) {
+			this.id = id;
+		}
+
+		public String getFirstName() {
+			return this.firstName;
+		}
+
+		public void setFirstName(String firstName) {
+			this.firstName = firstName;
+		}
+
+		public String getLastName() {
+			return this.lastName;
+		}
+
+		public void setLastName(String lastName) {
+			this.lastName = lastName;
+		}
+
+		public String getAction() {
+			return this.action;
+		}
+
+		public void setAction(String action) {
+			this.action = action;
 		}
 	}
 

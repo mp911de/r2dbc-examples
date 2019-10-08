@@ -9,10 +9,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;;
 
-CREATE TABLE IF NOT EXISTS login_event
+DROP TABLE IF EXISTS login_event;;
+
+CREATE TABLE login_event
 (
     id         serial PRIMARY KEY,
-    username   varchar(255),
+    user_name   varchar(255),
     login_time timestamp
 );;
 
