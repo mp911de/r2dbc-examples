@@ -15,17 +15,23 @@
  */
 package com.example.demo;
 
+import io.r2dbc.spi.ConnectionFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.domain.Persistable;
+import org.springframework.data.r2dbc.connectionfactory.init.CompositeDatabasePopulator;
+import org.springframework.data.r2dbc.connectionfactory.init.ConnectionFactoryInitializer;
+import org.springframework.data.r2dbc.connectionfactory.init.ResourceDatabasePopulator;
 import org.springframework.data.r2dbc.core.DatabaseClient;
+import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
-import org.springframework.data.r2dbc.repository.query.Query;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +45,18 @@ public class DemoApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
+	}
+
+	@Bean
+	ConnectionFactoryInitializer initializer(ConnectionFactory connectionFactory) {
+
+
+		ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
+		initializer.setConnectionFactory(connectionFactory);
+		initializer
+				.setDatabasePopulator(new CompositeDatabasePopulator(new ResourceDatabasePopulator(new ClassPathResource("schema.sql"), new ClassPathResource("data.sql"))));
+
+		return initializer;
 	}
 
 	@RestController
@@ -66,7 +84,7 @@ public class DemoApplication {
 			return this.personEventRepository.findAll();
 		}
 
-		@GetMapping("by-name/{lastname}")
+		@GetMapping("by-name/{lastName}")
 		public Flux<Person> findAllByLastName(@PathVariable String lastName) {
 			return this.personRepository.findAllByLastName(lastName);
 		}

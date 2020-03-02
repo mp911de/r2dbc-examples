@@ -30,7 +30,11 @@ import reactor.core.publisher.Mono;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.r2dbc.connectionfactory.init.ConnectionFactoryInitializer;
+import org.springframework.data.r2dbc.connectionfactory.init.ResourceDatabasePopulator;
 import org.springframework.data.r2dbc.repository.config.EnableR2dbcRepositories;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
@@ -47,6 +51,19 @@ public class DemoApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemoApplication.class, args);
+	}
+
+	@Bean
+	ConnectionFactoryInitializer initializer(ConnectionFactory connectionFactory) {
+
+		ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
+		initializer.setConnectionFactory(connectionFactory);
+
+		ResourceDatabasePopulator populator = new ResourceDatabasePopulator(new ClassPathResource("schema.sql"));
+		populator.setSeparator(";;");
+		initializer.setDatabasePopulator(populator);
+
+		return initializer;
 	}
 
 	@RestController
